@@ -1,0 +1,17 @@
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.db
+.DS_Store
+.git
+.gitignore
+.env
+.vscode
+artifacts/*.json
+artifacts/*.png
+data/*.csv
+legacy/
+docs/
+*.log
