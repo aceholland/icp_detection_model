@@ -1,0 +1,25 @@
+.env
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
+
+# Local artifacts and results
+artifacts/
+*.png
+*.json
+!models/feature_names.json
+
+# Data
+data/
+*.csv
+*.pkl
+*.joblib
+*.pth
+
+# IDE
+.vscode/
+.idea/

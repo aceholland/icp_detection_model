@@ -1,0 +1,52 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# NeuraScan Web App — Requirements
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Core web app dependencies (FastAPI + pipeline stages)
+# Install with: pip install -r requirements.txt
+#
+
+# ─── Web Framework ────────────────────────────────────────────────────────
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+
+# ─── Data Science & Signal Processing ─────────────────────────────────────
+numpy>=1.24.0
+scipy>=1.11.0
+pandas>=2.0.0
+scikit-learn>=1.3.0
+
+# ─── Computer Vision ─────────────────────────────────────────────────────
+opencv-python>=4.8.0
+mediapipe>=0.10.0
+
+# ─── Machine Learning & Model Serving ────────────────────────────────────
+xgboost>=2.0.0
+joblib>=1.3.0
+
+# ─── Visualization (for stage outputs) ────────────────────────────────────
+matplotlib>=3.8.0
+
+# ─── AI/LLM Integration ──────────────────────────────────────────────────
+google-generativeai>=0.3.0
+
+# ─── Environment & Configuration ─────────────────────────────────────────
+python-dotenv>=1.0.0
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Optional: Training & Research Scripts
+# Uncomment below if running stage3_train.py, train_rppg_to_ppg.py, etc.
+# ═══════════════════════════════════════════════════════════════════════════
+
+# torch>=2.0.0  # For PyTorch model training (stage rPPG→PPG, PPG→ECG)
+# wfdb>=4.0.0   # For BIDMC ECG dataset (optional, for training only)
+# rppg>=0.2.5   # For EfficientPhys rPPG extraction (optional, for stage2_model.py)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Optional: Testing & Development
+# Uncomment below for unit tests and HTTP client support
+# ═══════════════════════════════════════════════════════════════════════════
+
+# httpx>=0.24.0  # For FastAPI TestClient (testing only)
+# pytest>=7.0.0  # For running tests
