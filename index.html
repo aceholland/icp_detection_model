@@ -1048,11 +1048,6 @@ body::before {
             <div class="vital-value" id="val-resp">--</div>
             <div class="vital-unit">br/min</div>
           </div>
-          <div class="vital-card" id="card-p2p1">
-            <div class="vital-label">P2/P1 Ratio</div>
-            <div class="vital-value" id="val-p2p1">--</div>
-            <div class="vital-unit">ICP marker</div>
-          </div>
           <div class="vital-card" id="card-npi">
             <div class="vital-label">NPI Score</div>
             <div class="vital-value" id="val-npi">--</div>
@@ -1074,7 +1069,6 @@ body::before {
           <div class="stage-item"><div class="stage-dot" id="stage-2"></div>rPPG Signal Extraction</div>
           <div class="stage-item"><div class="stage-dot" id="stage-3"></div>PLR Pupillometry Test</div>
           <div class="stage-item"><div class="stage-dot" id="stage-4"></div>Feature Extraction</div>
-          <div class="stage-item"><div class="stage-dot" id="stage-5"></div>ICP Model Inference</div>
         </div>
       </div>
 
@@ -1150,11 +1144,6 @@ body::before {
           <span class="metric-name">HRV RMSSD</span>
           <div class="metric-bar-wrap"><div class="metric-bar-fill ok" id="bar-rmssd" style="width:50%"></div></div>
           <span class="metric-val ok" id="res-rmssd">-- ms</span>
-        </div>
-        <div class="metric-row">
-          <span class="metric-name">P2/P1 Ratio</span>
-          <div class="metric-bar-wrap"><div class="metric-bar-fill ok" id="bar-p2p1" style="width:40%"></div></div>
-          <span class="metric-val ok" id="res-p2p1">--</span>
         </div>
         <div class="metric-row">
           <span class="metric-name">Respiratory Rate</span>
@@ -1311,32 +1300,7 @@ async function startCamera() {
     document.getElementById('no-camera').style.display = 'none';
     document.getElementById('face-guide').style.display = 'block';
     document.getElementById('scan-line').style.display = 'block';
-    
-    // Wait for the video to be ready with a timeout
-    return new Promise((resolve) => {
-      const timeout = setTimeout(() => {
-        console.warn("Camera initialization timed out");
-        resolve(false);
-      }, 10000);
-
-      const onReady = () => {
-        clearTimeout(timeout);
-        video.play().then(() => {
-          // Final check: ensure we actually have dimensions
-          if (video.videoWidth > 0) {
-            resolve(true);
-          } else {
-            resolve(false);
-          }
-        }).catch(() => resolve(false));
-      };
-
-      if (video.readyState >= 2) {
-        onReady();
-      } else {
-        video.onloadedmetadata = onReady;
-      }
-    });
+    return true;
   } catch(e) {
     alert('Camera access denied. Please allow camera access and try again.');
     return false;
@@ -1358,16 +1322,8 @@ function stopCamera() {
 // ── Scan toggle ──────────────────────────────────────────────────
 async function toggleScan() {
   if (!scanning) {
-    const btn = document.getElementById('scan-btn');
-    btn.disabled = true;
-    btn.textContent = '⌛ Starting...';
-    
     const ok = await startCamera();
-    if (!ok) {
-      btn.disabled = false;
-      btn.textContent = '▶ Start Scan';
-      return;
-    }
+    if (!ok) return;
 
     scanning   = true;
     frameCount = 0;
@@ -1376,9 +1332,8 @@ async function toggleScan() {
     waveBuffer = [];
     plrDone    = false;
 
-    btn.disabled = false;
-    btn.textContent = '■ Stop Scan';
-    btn.className   = 'scan-btn stop';
+    document.getElementById('scan-btn').textContent = '■ Stop Scan';
+    document.getElementById('scan-btn').className   = 'scan-btn stop';
     document.getElementById('scan-dot').className   = 'scan-dot recording';
     document.getElementById('scan-status-text').textContent = 'RECORDING';
 
@@ -1414,10 +1369,7 @@ function processFrame() {
 
   if (video.videoWidth === 0) return;
 
-  // Safety: if the video is black/empty, don't count it
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  const testData = ctx.getImageData(0, 0, 1, 1).data;
-  if (testData[0] === 0 && testData[1] === 0 && testData[2] === 0 && testData[3] === 0) return;
 
   // Extract forehead ROI (approximate — top 20% of frame, centre 40%)
   const W = canvas.width, H = canvas.height;
@@ -1431,17 +1383,6 @@ function processFrame() {
     r += data[i]; g += data[i+1]; b += data[i+2]; n++;
   }
   if (n > 0) { r /= n; g /= n; b /= n; }
-
-  // Skin color check (basic heuristic: R > G > B and R-G > 10)
-  const isSkin = (r > g && g > b && (r - g) > 10);
-  if (!isSkin) {
-    document.getElementById('scan-status-text').textContent = 'NO FACE DETECTED';
-    document.getElementById('scan-dot').className = 'scan-dot';
-    return; 
-  } else {
-    document.getElementById('scan-status-text').textContent = 'RECORDING';
-    document.getElementById('scan-dot').className = 'scan-dot recording';
-  }
 
   rBuffer.push(r); gBuffer.push(g); bBuffer.push(b);
 
@@ -1494,7 +1435,7 @@ function processFrame() {
   drawWaveform();
 
   // Auto-submit when enough data
-  if (frameCount >= 900) {
+  if (frameCount === 900) {
     setStage(4, 'done');
     stopScan();
     submitToBackend();
@@ -1647,7 +1588,7 @@ async function submitToBackend() {
 // ── Mock result (demo mode) ──────────────────────────────────────
 function mockResult() {
   return {
-    icp_est_mmhg: 13.4,
+    icp_est_mmhg: null,  // XGBoost stage skipped
     risk_level:   'NORMAL',
     confidence:   82,
     features: {
@@ -1677,9 +1618,10 @@ function renderResults(data) {
   }
 
   const f = data.features || {};
-  const icp = Number(data.icp_est_mmhg ?? data.icp_estimate_mmhg ?? data.icp ?? 0);
-  const risk = (data.risk_level || 'NORMAL').toUpperCase();
-  const safeIcp = Number.isFinite(icp) ? icp : 0;
+  const icp = data.icp_est_mmhg ?? data.icp_estimate_mmhg ?? data.icp ?? null;
+  const risk = (data.risk_level || 'NOT_COMPUTED').toUpperCase();
+  const safeIcp = icp !== null ? Number(icp) : null;
+  const icpAvailable = safeIcp !== null && Number.isFinite(safeIcp);
 
   // Show content
   document.getElementById('results-empty').style.display   = 'none';
@@ -1687,22 +1629,26 @@ function renderResults(data) {
 
   // Risk banner
   const banner = document.getElementById('risk-banner');
-  banner.className = 'risk-banner ' + risk.toLowerCase();
-  document.getElementById('res-risk-label').textContent = risk;
-  document.getElementById('res-icp-val').textContent    = safeIcp.toFixed(1) + ' mmHg';
+  banner.className = 'risk-banner ' + (icpAvailable ? risk.toLowerCase() : 'unavailable');
+  document.getElementById('res-risk-label').textContent = icpAvailable ? risk : 'ICP MODEL SKIPPED';
+  document.getElementById('res-icp-val').textContent    = icpAvailable ? safeIcp.toFixed(1) + ' mmHg' : 'Not computed';
   document.getElementById('res-timestamp').textContent  = new Date().toLocaleString();
-  document.getElementById('res-badge').textContent      = '● Scan Complete';
+  document.getElementById('res-badge').textContent      = '● Scan Complete (Vital Signs Only)';
 
   // Big ICP
   const bigICP = document.getElementById('big-icp');
-  bigICP.textContent  = safeIcp.toFixed(1);
-  bigICP.style.color  = risk === 'NORMAL' ? 'var(--green)' : risk === 'ELEVATED' ? 'var(--amber)' : 'var(--red)';
+  if (icpAvailable) {
+    bigICP.textContent  = safeIcp.toFixed(1);
+    bigICP.style.color  = risk === 'NORMAL' ? 'var(--green)' : risk === 'ELEVATED' ? 'var(--amber)' : 'var(--red)';
+  } else {
+    bigICP.textContent  = 'N/A';
+    bigICP.style.color  = 'var(--text-dim)';
+  }
 
   // rPPG metrics
   setMetric('res-hr',   f.HR,            'BPM',    'bar-hr',   f.HR/150,    f.HR < 50 || f.HR > 100 ? 'warn' : 'ok');
   setMetric('res-sdnn', f.SDNN,          'ms',     'bar-sdnn', f.SDNN/100,  f.SDNN < 20 ? 'warn' : 'ok');
   setMetric('res-rmssd',f.RMSSD,         'ms',     'bar-rmssd',f.RMSSD/80,  f.RMSSD < 20 ? 'warn' : 'ok');
-  setMetric('res-p2p1', f.P2_P1_ratio,   '',       'bar-p2p1', f.P2_P1_ratio/1.5, f.P2_P1_ratio > 1.0 ? 'warn' : 'ok');
   setMetric('res-resp', f.RespRate,      'br/min', 'bar-resp', f.RespRate/35, f.RespRate < 8 || f.RespRate > 25 ? 'warn' : 'ok');
   setMetric('res-lfhf', f.LF_HF,         '',       'bar-lfhf', Math.min(f.LF_HF/3,1), f.LF_HF > 2 ? 'warn' : 'ok');
 
@@ -1712,9 +1658,9 @@ function renderResults(data) {
   document.getElementById('quality-bar').style.width     = q + '%';
 
   // Confidence
-  const conf = data.confidence || 75;
-  document.getElementById('res-confidence').textContent  = conf + '%';
-  document.getElementById('confidence-bar').style.width  = conf + '%';
+  const conf = icpAvailable ? (data.confidence || 75) : 0;
+  document.getElementById('res-confidence').textContent  = icpAvailable ? (conf + '%') : 'N/A (ICP Model skipped)';
+  document.getElementById('confidence-bar').style.width  = (conf + '%');
 
   // Pupillometry
   document.getElementById('res-pupil-L').textContent = (f.pupil_L_px||0).toFixed(1) + ' px';
@@ -1749,7 +1695,7 @@ function renderResults(data) {
   document.getElementById('clinical-report').innerHTML = data.clinical_report || 'Report unavailable.';
 
   // Meta
-  document.getElementById('meta-method').textContent   = data.method || 'CHROM + XGBoost';
+  document.getElementById('meta-method').textContent   = data.method || 'Vital Signs Only';
   document.getElementById('meta-frames').textContent   = f.frames_used || frameCount;
   document.getElementById('meta-duration').textContent = (f.duration_sec || Math.round(frameCount/30)) + 's';
 
@@ -1840,7 +1786,7 @@ function downloadReport() {
     '',
     'RESULT',
     '------',
-    'Estimated ICP : ' + d.icp_est_mmhg + ' mmHg',
+    d.icp_est_mmhg !== null ? ('Estimated ICP : ' + d.icp_est_mmhg + ' mmHg') : '(ICP Model Skipped)',
     'Risk Level    : ' + d.risk_level,
     '',
     'rPPG FEATURES',
