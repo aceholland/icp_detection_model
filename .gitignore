@@ -16,9 +16,11 @@ artifacts/
 # Data
 data/
 *.csv
-*.pkl
-*.joblib
-*.pth
+# Allow essential models
+!models/*.pkl
+!models/*.pth
+!models/*.task
+!models/*.json
 
 # IDE
 .vscode/
