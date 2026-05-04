@@ -1,4 +1,4 @@
-# NeuraScan — Non-Invasive ICP Detection Model
+# NeuroNova — Non-Invasive ICP Detection Model
 
 **Project summary:** NeuraScan is an end-to-end medical AI pipeline that estimates Intracranial Pressure (ICP) using only a standard webcam. It combines camera-based rPPG (Remote Photoplethysmography), real-time pupillometry, and XGBoost regression to provide a non-invasive alternative to surgical ICP monitoring.
 
